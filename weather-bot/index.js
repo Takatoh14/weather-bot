@@ -1,5 +1,6 @@
 // 必要なパッケージを読み込む
 require('dotenv').config();
+const fs = require('fs');
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
 const schedule = require('node-schedule');
@@ -82,25 +83,40 @@ const buildEmbed = (data, label) => {
 };
 
 // Bot準備完了時の処理
-client.once('ready', () => {
-  console.log(`${client.user.tag} がログインしました！`);
+client.once('ready', async () => {
+  const now = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+  const loginMessage = `[${now}] ✅ ${client.user.tag} がログインしました！`;
 
+  console.log(loginMessage);
+  fs.appendFileSync('log.txt', loginMessage + '\n');
+
+  // 自動スケジュール処理（日本時間ベース）
   const times = [
     { cron: '0 8 * * *', label: '8時' },
     { cron: '0 12 * * *', label: '12時' },
     { cron: '0 17 * * *', label: '17時' },
   ];
 
+  const channel = await client.channels.fetch(process.env.CHANNEL_ID).catch(err => {
+    console.error('チャンネル取得エラー:', err.message);
+    return null;
+  });
+
+  if (!channel || !channel.isTextBased()) {
+    console.error('有効なテキストチャンネルが取得できませんでした。');
+    return;
+  }
+
   times.forEach(({ cron, label }) => {
     schedule.scheduleJob(cron, async () => {
-      const channel = client.channels.cache.get(process.env.CHANNEL_ID);
-      if (!channel) return;
-
       const weather = await getRealtimeWeather();
       if (!weather) return;
 
       const embed = buildEmbed(weather, label);
       channel.send({ embeds: [embed] });
+
+      const logTime = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+      fs.appendFileSync('log.txt', `[${logTime}] 📤 ${label}の天気を送信しました。\n`);
     });
   });
 });
@@ -109,19 +125,16 @@ client.once('ready', () => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  // 都市の変更コマンド
   if (message.content.startsWith('Change/')) {
     const inputCity = message.content.split('/')[1].trim();
     const result = await getCoordinatesFromCity(inputCity);
 
-    if (result.error) {
-      return message.reply(`❌ ${result.error}`);
-    }
+    if (result.error) return message.reply(`❌ ${result.error}`);
 
     if (result.candidates) {
       const list = result.candidates.map((c, i) => `${i + 1}. ${c}`).join('\n');
       return message.reply(
-        `🔍 入力に一致する都市が複数見つかりました。\nもう少し具体的に入力してください（例: \`Change/Shinagawa,Tokyo,JP\`）。\n\n**候補:**\n${list}`
+        `🔍 入力に一致する都市が複数見つかりました。\nもう少し具体的に入力してください。\n\n**候補:**\n${list}`
       );
     }
 
@@ -130,12 +143,10 @@ client.on('messageCreate', async (message) => {
     return message.reply(`✅ 天気の都市を「${currentCity}」に変更しました。`);
   }
 
-  // 現在の都市確認
   if (message.content === 'now city') {
     return message.reply(`🌍 現在の都市設定は「${currentCity}」です。`);
   }
 
-  // 天気取得コマンド
   if (message.content === '!天気') {
     const data = await getRealtimeWeather();
     if (!data) return message.reply('天気情報の取得に失敗しました。');
