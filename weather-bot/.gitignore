@@ -1,0 +1,8 @@
+# 機密情報
+.env
+
+# node_modulesは重いので除外
+node_modules/
+
+# OSファイル
+.DS_Store
