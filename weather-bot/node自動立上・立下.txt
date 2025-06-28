@@ -1,22 +1,4 @@
-macの設定
+ macの設定
 
-ターミナルを開いて以下のコマンドを実行
-crontab -e
-
-crontab -eを実行した後に「i」を入力すると「---INSERT---」と最下部に出るので表示されたら
-以下を入力する
-例
-# === 毎日7:50にBotを起動 ===
-50 7 * * * /usr/local/bin/node /開発したフォルダのパス/index.js > 開発したフォルダのパス/log_morning.txt 2>&1 &
-
-# === 毎日8:10にBotを終了 ===
-10 8 * * * pkill -f "/開発したフォルダのパス/index.js"
-
-ESCを押し、---INSERT---が消えたら、「:wq」を押す
-
-
-以下を実行し保存できている確認。
-crontab -l
-
-
-
+bash start-bot.shを実行するとindex.jsが起動する
+bash stop-bot.shを実行するとindex.jsが停止する
